@@ -168,7 +168,7 @@ try:
             mqtt_payload = "on" if payload["action"] == "Start" else "off"
             mqtt_publish(motion_topic, mqtt_payload)
         elif code == "_DoTalkAction_":
-            mqtt_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
+            mqtt_payload = "on" if payload["data"]["Action"] == "Pulse" else "off"
             mqtt_publish(doorbell_topic, mqtt_payload)
 
         mqtt_publish(event_topic, json.dumps(payload))
