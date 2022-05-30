@@ -1,3 +1,7 @@
 amcrest==1.9.7
 paho-mqtt==1.6.1
 python-slugify==6.1.1
+black==22.3.0
+isort==5.10.1
+mypy==0.960
+types-python-slugify==5.0.4

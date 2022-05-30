@@ -1,14 +1,15 @@
-from slugify import slugify
-from amcrest import AmcrestCamera, AmcrestError
-from datetime import datetime, timezone
-import paho.mqtt.client as mqtt
-import os
-import sys
-from json import dumps
-import signal
-from threading import Timer
-import ssl
 import asyncio
+import os
+import signal
+import ssl
+import sys
+from datetime import datetime, timezone
+from json import dumps
+from threading import Timer
+
+import paho.mqtt.client as mqtt
+from amcrest import AmcrestCamera, AmcrestError
+from slugify import slugify
 
 is_exiting = False
 mqtt_client = None
@@ -35,11 +36,13 @@ mqtt_tls_key = os.getenv("MQTT_TLS_KEY")
 home_assistant = os.getenv("HOME_ASSISTANT") == "true"
 home_assistant_prefix = os.getenv("HOME_ASSISTANT_PREFIX") or "homeassistant"
 
+
 def read_file(file_name):
-    with open(file_name, 'r') as file:
-        data = file.read().replace('\n', '')
+    with open(file_name, "r") as file:
+        data = file.read().replace("\n", "")
 
     return data
+
 
 def read_version():
     if os.path.isfile("./VERSION"):
@@ -47,10 +50,12 @@ def read_version():
 
     return read_file("../VERSION")
 
+
 # Helper functions and callbacks
 def log(msg, level="INFO"):
     ts = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S")
     print(f"{ts} [{level}] {msg}")
+
 
 def mqtt_publish(topic, payload, exit_on_error=True, json=False):
     global mqtt_client
@@ -68,10 +73,12 @@ def mqtt_publish(topic, payload, exit_on_error=True, json=False):
     if exit_on_error:
         exit_gracefully(msg.rc, skip_mqtt=True)
 
+
 def on_mqtt_disconnect(client, userdata, rc):
     if rc != 0:
         log(f"Unexpected MQTT disconnection", level="ERROR")
         exit_gracefully(rc, skip_mqtt=True)
+
 
 def exit_gracefully(rc, skip_mqtt=False):
     global topics, mqtt_client
@@ -85,6 +92,7 @@ def exit_gracefully(rc, skip_mqtt=False):
     # Use os._exit instead of sys.exit to ensure an MQTT disconnect event causes the program to exit correctly as they
     # occur on a separate thread
     os._exit(rc)
+
 
 def refresh_storage_sensors():
     global camera, topics, storage_poll_interval
@@ -101,8 +109,10 @@ def refresh_storage_sensors():
     except AmcrestError as error:
         log(f"Error fetching storage information {error}", level="WARNING")
 
+
 def to_gb(total):
     return str(round(float(total[0]) / 1024 / 1024 / 1024, 2))
+
 
 def signal_handler(sig, frame):
     # exit immediately upon receiving a second SIGINT
@@ -113,6 +123,7 @@ def signal_handler(sig, frame):
 
     is_exiting = True
     exit_gracefully(0)
+
 
 # Exit if any of the required vars are not provided
 if amcrest_host is None:
@@ -258,7 +269,9 @@ if home_assistant:
     }
 
     if is_doorbell:
-        doorbell_name = "Doorbell" if device_name == "Doorbell" else f"{device_name} Doorbell"
+        doorbell_name = (
+            "Doorbell" if device_name == "Doorbell" else f"{device_name} Doorbell"
+        )
 
         mqtt_publish(topics["home_assistant_legacy"]["doorbell"], "")
         mqtt_publish(
@@ -317,7 +330,7 @@ if home_assistant:
             "name": f"{device_name} Version",
             "unique_id": f"{serial_number}.version",
             "entity_category": "diagnostic",
-            "enabled_by_default": False
+            "enabled_by_default": False,
         },
         json=True,
     )
@@ -333,7 +346,7 @@ if home_assistant:
             "name": f"{device_name} Serial Number",
             "unique_id": f"{serial_number}.serial_number",
             "entity_category": "diagnostic",
-            "enabled_by_default": False
+            "enabled_by_default": False,
         },
         json=True,
     )
@@ -349,7 +362,7 @@ if home_assistant:
             "name": f"{device_name} Host",
             "unique_id": f"{serial_number}.host",
             "entity_category": "diagnostic",
-            "enabled_by_default": False
+            "enabled_by_default": False,
         },
         json=True,
     )
@@ -403,31 +416,43 @@ if home_assistant:
 
 # Main loop
 mqtt_publish(topics["status"], "online")
-mqtt_publish(topics["config"], {
-    "version": version,
-    "device_type": device_type,
-    "device_name": device_name,
-    "sw_version": amcrest_version,
-    "serial_number": serial_number,
-    "host": amcrest_host,
-}, json=True)
+mqtt_publish(
+    topics["config"],
+    {
+        "version": version,
+        "device_type": device_type,
+        "device_name": device_name,
+        "sw_version": amcrest_version,
+        "serial_number": serial_number,
+        "host": amcrest_host,
+    },
+    json=True,
+)
 
 if storage_poll_interval > 0:
     refresh_storage_sensors()
 
 log("Listening for events...")
 
+
 async def main():
     try:
         async for code, payload in camera.async_event_actions("All"):
-            if (is_ad110 and code == "ProfileAlarmTransmit") or (code == "VideoMotion" and not is_ad110):
+            if (is_ad110 and code == "ProfileAlarmTransmit") or (
+                code == "VideoMotion" and not is_ad110
+            ):
                 motion_payload = "on" if payload["action"] == "Start" else "off"
                 mqtt_publish(topics["motion"], motion_payload)
-            elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
+            elif (
+                code == "CrossRegionDetection"
+                and payload["data"]["ObjectType"] == "Human"
+            ):
                 human_payload = "on" if payload["action"] == "Start" else "off"
                 mqtt_publish(topics["human"], human_payload)
             elif code == "_DoTalkAction_":
-                doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
+                doorbell_payload = (
+                    "on" if payload["data"]["Action"] == "Invite" else "off"
+                )
                 mqtt_publish(topics["doorbell"], doorbell_payload)
 
             mqtt_publish(topics["event"], payload, json=True)
@@ -436,5 +461,6 @@ async def main():
     except AmcrestError as error:
         log(f"Amcrest error: {error}", level="ERROR")
         exit_gracefully(1)
+
 
 asyncio.run(main())
