@@ -5,8 +5,7 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from paho.mqtt.client import (MQTT_ERR_SUCCESS, Client,  # type: ignore
-                              error_string)
+from paho.mqtt.client import MQTT_ERR_SUCCESS, Client, error_string  # type: ignore
 
 logger = logging.getLogger(__name__)
 

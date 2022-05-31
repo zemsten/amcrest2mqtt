@@ -53,8 +53,8 @@ def refresh_storage_sensors(
         mqtt_client.publish(
             topics["storage_used_percent"], str(storage["used_percent"])
         )
-        mqtt_client.publish(topics["storage_used"], to_gb(storage["used"]))
-        mqtt_client.publish(topics["storage_total"], to_gb(storage["total"]))
+        mqtt_client.publish(topics["storage_used"], to_gb(float(storage["used"][0])))
+        mqtt_client.publish(topics["storage_total"], to_gb(float(storage["total"][0])))
     except AmcrestError as error:
         logger.warning(f"Error fetching storage information {error}")
 
