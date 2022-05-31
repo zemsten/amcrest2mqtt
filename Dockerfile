@@ -1,17 +1,13 @@
 FROM python:3.9-alpine as base
-FROM base as builder
 
-RUN mkdir /install
-WORKDIR /install
 
-COPY requirements.txt /
-RUN pip install --no-warn-script-location --prefix=/install -r /requirements.txt
-
-FROM base
-STOPSIGNAL SIGINT
-COPY --from=builder /install /usr/local
-COPY src /app
+RUN mkdir /app
+COPY setup.py /app
 COPY VERSION /app
+COPY src /app/src
 WORKDIR /app
+RUN ls /app
 
-CMD [ "python", "-u", "/app/amcrest2mqtt.py" ]
+RUN python3 setup.py install
+
+CMD [ "amcrest2mqtt" ]

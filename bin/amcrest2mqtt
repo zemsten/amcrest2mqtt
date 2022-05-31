@@ -1,0 +1,3 @@
+import amcrest2mqtt
+
+amcrest2mqtt.main()
