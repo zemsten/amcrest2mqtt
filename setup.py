@@ -18,6 +18,6 @@ setup(
     install_requires=[
         "amcrest==1.9.7",
         "paho-mqtt==1.6.1",
-        "python-slugify==6.1.1",
+        "python-slugify==6.1.2",
     ],
 )
