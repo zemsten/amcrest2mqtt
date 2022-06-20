@@ -283,7 +283,8 @@ def main() -> None:
 
     logger.info("Listening for events...")
     try:
-        asyncio.ensure_future(refresh_storage_sensors(camera, mqtt_client, topics))
+        if storage_poll_interval > 0:
+            asyncio.ensure_future(refresh_storage_sensors(camera, mqtt_client, topics))
         asyncio.ensure_future(
             poll_device(camera=camera, mqtt_client=mqtt_client, topics=topics)
         )
@@ -351,7 +352,7 @@ async def refresh_storage_sensors(
         except AmcrestError as error:
             logger.warning(f"Error fetching storage information {error}")
 
-    await asyncio.sleep(polling_interval)
+        await asyncio.sleep(polling_interval)
 
 
 if __name__ == "__main__":
