@@ -5,6 +5,7 @@ from functools import cached_property
 from amcrest import AmcrestCamera
 from slugify import slugify
 
+
 logger = logging.getLogger(__name__)
 
 

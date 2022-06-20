@@ -3,9 +3,10 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
-from paho.mqtt.client import MQTT_ERR_SUCCESS, Client, error_string  # type: ignore
+from paho.mqtt.client import MQTT_ERR_SUCCESS, Client, error_string
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,14 @@ class MqttClient:
             logger.error(f"Could not connect to MQTT server: {error}")
             sys.exit(1)
 
-    def publish(self, topic, payload, qos=0, exit_on_error=True, as_json=False):
+    def publish(
+        self,
+        topic: str,
+        payload: Any,
+        qos: int = 0,
+        exit_on_error: bool = True,
+        as_json: bool = False,
+    ) -> None:
         """Publish message to MQTT topic"""
         payload = json.dumps(payload) if as_json else payload
         msg = self.client.publish(
@@ -73,19 +81,18 @@ class MqttClient:
         logger.error(f"Error publishing MQTT message: {error_string(msg.rc)}")
 
         if exit_on_error:
-            self.exit_gracefully(msg.rc, skip_mqtt=True)
+            logger.error("MqttClient exiting, exit_on_error=True")
+            os._exit(msg.rc)
 
-    def on_mqtt_disconnect(self, client, userdata, rc):
+    def on_mqtt_disconnect(self, client: Client, userdata: str, rc: int) -> None:
         if rc != 0:
             logger.error("Unexpected MQTT disconnection")
             self.client.disconnect()
 
-    def exit_gracefully(
-        self, topic: Dict[str, Any], rc: int, skip_mqtt: bool = False
-    ) -> None:
+    def exit_gracefully(self, topic: str, rc: int, skip_mqtt: bool = False) -> None:
         logger.info("MqttClient exiting")
         if self.client.is_connected() and not skip_mqtt:
-            self.publish(topic, "offline", exit_on_error=False)
+            self.publish(topic=topic, payload="offline", exit_on_error=False)
             self.client.disconnect()
 
         # Use os._exit instead of sys.exit to ensure an MQTT disconnect event causes the program to exit correctly as they

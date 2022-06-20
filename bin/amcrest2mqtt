@@ -1,3 +1,4 @@
-import amcrest2mqtt
+#!/usr/bin/env python3
+from amcrest2mqtt.main import main
 
-amcrest2mqtt.main()
+main()

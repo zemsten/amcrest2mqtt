@@ -1,68 +1,44 @@
 import asyncio
 import logging
 import os
-from threading import Timer
+from typing import Any, Dict
 
 from amcrest import AmcrestError
 
-import amcrest2mqtt
+from amcrest2mqtt import __version__
 from amcrest2mqtt.camera import CameraClient
 from amcrest2mqtt.mqtt import MqttClient
 from amcrest2mqtt.util import to_gb
 
+
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
 
-# amcrest_host = os.getenv("AMCREST_HOST")
-amcrest_port = int(os.getenv("AMCREST_PORT") or 80)
-amcrest_username = os.getenv("AMCREST_USERNAME") or "admin"
-# amcrest_password = os.getenv("AMCREST_PASSWORD")
-amcrest_host = "192.168.66.11"
-amcrest_password = "h@rlan92"
 
-storage_poll_interval = int(os.getenv("STORAGE_POLL_INTERVAL") or 3600)
-
-# mqtt_host = os.getenv("MQTT_HOST") or "localhost"
-mqtt_qos = int(os.getenv("MQTT_QOS") or 0)
-mqtt_port = int(os.getenv("MQTT_PORT") or 1883)
-# mqtt_username = os.getenv("MQTT_USERNAME")
-# mqtt_password = os.getenv("MQTT_PASSWORD")  # can be None
-mqtt_username = "mqtt"
-mqtt_password = "mqtt"
-mqtt_host = "192.168.255.11"
-mqtt_tls_enabled = os.getenv("MQTT_TLS_ENABLED") == "true"
-mqtt_tls_ca_cert = os.getenv("MQTT_TLS_CA_CERT")
-mqtt_tls_cert = os.getenv("MQTT_TLS_CERT")
-mqtt_tls_key = os.getenv("MQTT_TLS_KEY")
-
-home_assistant = os.getenv("HOME_ASSISTANT") == "true"
-home_assistant_prefix = os.getenv("HOME_ASSISTANT_PREFIX") or "homeassistant"
-
-
-def refresh_storage_sensors(
-    camera: CameraClient, mqtt_client: MqttClient, topics, polling_interval=3600
-):
-    """Refresh storage sensors from Amcrest camera"""
-
-    Timer(polling_interval, refresh_storage_sensors).start()
-    logger.info("Fetching storage sensors...")
-
-    try:
-        storage = camera.client.storage_all
-
-        mqtt_client.publish(
-            topics["storage_used_percent"], str(storage["used_percent"])
-        )
-        mqtt_client.publish(topics["storage_used"], to_gb(float(storage["used"][0])))
-        mqtt_client.publish(topics["storage_total"], to_gb(float(storage["total"][0])))
-    except AmcrestError as error:
-        logger.warning(f"Error fetching storage information {error}")
-
-
-def main():
+def main() -> None:
     """Main"""
 
-    logger.info(f"App Version: {amcrest2mqtt.__version__}")
+    logger.info(f"App Version: {__version__}")
+
+    amcrest_host = os.getenv("AMCREST_HOST")
+    amcrest_port = os.getenv("AMCREST_PORT", "80")
+    amcrest_username = os.getenv("AMCREST_USERNAME", "admin")
+    amcrest_password = os.getenv("AMCREST_PASSWORD")
+
+    storage_poll_interval = int(os.getenv("STORAGE_POLL_INTERVAL", 3600))
+
+    mqtt_host = os.getenv("MQTT_HOST") or "localhost"
+    mqtt_qos = os.getenv("MQTT_QOS", "0")
+    mqtt_port = os.getenv("MQTT_PORT", "1883")
+    mqtt_username = os.getenv("MQTT_USERNAME")
+    mqtt_password = os.getenv("MQTT_PASSWORD")  # can be None
+    mqtt_tls_enabled = os.getenv("MQTT_TLS_ENABLED") == "true"
+    mqtt_tls_ca_cert = os.getenv("MQTT_TLS_CA_CERT")
+    mqtt_tls_cert = os.getenv("MQTT_TLS_CERT")
+    mqtt_tls_key = os.getenv("MQTT_TLS_KEY")
+
+    home_assistant = os.getenv("HOME_ASSISTANT") == "true"
+    home_assistant_prefix = os.getenv("HOME_ASSISTANT_PREFIX") or "homeassistant"
 
     camera = CameraClient(
         host=amcrest_host,
@@ -74,9 +50,6 @@ def main():
     mqtt_client = MqttClient(
         host=mqtt_host, port=mqtt_port, username=mqtt_username, password=mqtt_password
     )
-
-    # Handle interruptions
-    # signal.signal(signal.SIGINT, signal_handler)
 
     # MQTT topics
     topics = {
@@ -132,26 +105,30 @@ def main():
 
         if camera.is_doorbell:
 
-            mqtt_client.publish(topics["home_assistant_legacy"]["doorbell"], "")
             mqtt_client.publish(
-                topics["home_assistant"]["doorbell"],
-                base_config
+                topic=topics["home_assistant_legacy"]["doorbell"], payload=""
+            )
+            mqtt_client.publish(
+                topic=topics["home_assistant"]["doorbell"],
+                payload=base_config
                 | {
                     "state_topic": topics["doorbell"],
                     "payload_on": "on",
                     "payload_off": "off",
                     "icon": "mdi:doorbell",
-                    "name": camera.doorbell_name,
+                    "name": camera.name,
                     "unique_id": f"{camera.serial_number}.doorbell",
                 },
                 as_json=True,
             )
 
         if camera.is_ad410:
-            mqtt_client.publish(topics["home_assistant_legacy"]["human"], "")
             mqtt_client.publish(
-                topics["home_assistant"]["human"],
-                base_config
+                topic=topics["home_assistant_legacy"]["human"], payload=""
+            )
+            mqtt_client.publish(
+                topic=topics["home_assistant"]["human"],
+                payload=base_config
                 | {
                     "state_topic": topics["human"],
                     "payload_on": "on",
@@ -163,10 +140,10 @@ def main():
                 as_json=True,
             )
 
-        mqtt_client.publish(topics["home_assistant_legacy"]["motion"], "")
+        mqtt_client.publish(topic=topics["home_assistant_legacy"]["motion"], payload="")
         mqtt_client.publish(
-            topics["home_assistant"]["motion"],
-            base_config
+            topic=topics["home_assistant"]["motion"],
+            payload=base_config
             | {
                 "state_topic": topics["motion"],
                 "payload_on": "on",
@@ -178,10 +155,12 @@ def main():
             as_json=True,
         )
 
-        mqtt_client.publish(topics["home_assistant_legacy"]["version"], "")
         mqtt_client.publish(
-            topics["home_assistant"]["version"],
-            base_config
+            topic=topics["home_assistant_legacy"]["version"], payload=""
+        )
+        mqtt_client.publish(
+            topic=topics["home_assistant"]["version"],
+            payload=base_config
             | {
                 "state_topic": topics["config"],
                 "value_template": "{{ value_json.sw_version }}",
@@ -194,10 +173,12 @@ def main():
             as_json=True,
         )
 
-        mqtt_client.publish(topics["home_assistant_legacy"]["serial_number"], "")
         mqtt_client.publish(
-            topics["home_assistant"]["serial_number"],
-            base_config
+            topic=topics["home_assistant_legacy"]["serial_number"], payload=""
+        )
+        mqtt_client.publish(
+            topic=topics["home_assistant"]["serial_number"],
+            payload=base_config
             | {
                 "state_topic": topics["config"],
                 "value_template": "{{ value_json.serial_number }}",
@@ -210,10 +191,10 @@ def main():
             as_json=True,
         )
 
-        mqtt_client.publish(topics["home_assistant_legacy"]["host"], "")
+        mqtt_client.publish(topic=topics["home_assistant_legacy"]["host"], payload="")
         mqtt_client.publish(
-            topics["home_assistant"]["host"],
-            base_config
+            topic=topics["home_assistant"]["host"],
+            payload=base_config
             | {
                 "state_topic": topics["config"],
                 "value_template": "{{ value_json.host }}",
@@ -228,11 +209,12 @@ def main():
 
         if storage_poll_interval > 0:
             mqtt_client.publish(
-                topics["home_assistant_legacy"]["storage_used_percent"], ""
+                topic=topics["home_assistant_legacy"]["storage_used_percent"],
+                payload="",
             )
             mqtt_client.publish(
                 topics["home_assistant"]["storage_used_percent"],
-                base_config
+                payload=base_config
                 | {
                     "state_topic": topics["storage_used_percent"],
                     "unit_of_measurement": "%",
@@ -245,10 +227,12 @@ def main():
                 as_json=True,
             )
 
-            mqtt_client.publish(topics["home_assistant_legacy"]["storage_used"], "")
             mqtt_client.publish(
-                topics["home_assistant"]["storage_used"],
-                base_config
+                topic=topics["home_assistant_legacy"]["storage_used"], payload=""
+            )
+            mqtt_client.publish(
+                topic=topics["home_assistant"]["storage_used"],
+                payload=base_config
                 | {
                     "state_topic": topics["storage_used"],
                     "unit_of_measurement": "GB",
@@ -260,10 +244,12 @@ def main():
                 as_json=True,
             )
 
-            mqtt_client.publish(topics["home_assistant_legacy"]["storage_total"], "")
             mqtt_client.publish(
-                topics["home_assistant"]["storage_total"],
-                base_config
+                topic=topics["home_assistant_legacy"]["storage_total"], payload=""
+            )
+            mqtt_client.publish(
+                topic=topics["home_assistant"]["storage_total"],
+                payload=base_config
                 | {
                     "state_topic": topics["storage_total"],
                     "unit_of_measurement": "GB",
@@ -276,10 +262,10 @@ def main():
             )
 
     # Main loop
-    mqtt_client.publish(topics["status"], "online")
+    mqtt_client.publish(topic=topics["status"], payload="online")
     mqtt_client.publish(
-        topics["config"],
-        {
+        topic=topics["config"],
+        payload={
             "version": camera.version,
             "device_type": camera.device_type,
             "device_name": camera.name,
@@ -290,44 +276,79 @@ def main():
         as_json=True,
     )
 
-    if storage_poll_interval > 0:
-        refresh_storage_sensors(camera, mqtt_client, topics)
+    loop = asyncio.get_event_loop()
 
     logger.info("Listening for events...")
     try:
-        asyncio.run(poll_device(camera, mqtt_client, topics))
+        asyncio.ensure_future(refresh_storage_sensors(camera, mqtt_client, topics))
+        asyncio.ensure_future(
+            poll_device(camera=camera, mqtt_client=mqtt_client, topics=topics)
+        )
+        loop.run_forever()
     except KeyboardInterrupt:
+        loop.close()
         logger.debug("Received KeyboardInterrupt, exitting...")
         mqtt_client.exit_gracefully(topic=topics["status"], rc=0)
         os._exit(1)
 
 
-async def poll_device(camera, mqtt_client, topics):
+async def poll_device(
+    camera: CameraClient, mqtt_client: MqttClient, topics: Dict[str, str]
+) -> None:
     try:
         async for code, payload in camera.client.async_event_actions("All"):
             if (camera.is_ad110 and code == "ProfileAlarmTransmit") or (
                 code == "VideoMotion" and not camera.is_ad110
             ):
                 motion_payload = "on" if payload["action"] == "Start" else "off"
-                mqtt_client.publish(topics["motion"], motion_payload)
+                mqtt_client.publish(topic=topics["motion"], payload=motion_payload)
             elif (
                 code == "CrossRegionDetection"
                 and payload["data"]["ObjectType"] == "Human"
             ):
                 human_payload = "on" if payload["action"] == "Start" else "off"
-                mqtt_client.publish(topics["human"], human_payload)
+                mqtt_client.publish(topic=topics["human"], payload=human_payload)
             elif code == "_DoTalkAction_":
                 doorbell_payload = (
                     "on" if payload["data"]["Action"] == "Invite" else "off"
                 )
-                mqtt_client.publish(topics["doorbell"], doorbell_payload)
+                mqtt_client.publish(topic=topics["doorbell"], payload=doorbell_payload)
 
-            mqtt_client.publish(topics["event"], payload, as_json=True)
+            mqtt_client.publish(topic=topics["event"], payload=payload, as_json=True)
             logger.debug(str(payload))
 
     except AmcrestError as error:
         logger.error(f"Amcrest error: {error}")
         mqtt_client.exit_gracefully(topic=topics["status"], rc=1)
+
+
+async def refresh_storage_sensors(
+    camera: CameraClient,
+    mqtt_client: MqttClient,
+    topics: Dict[str, Any],
+    polling_interval: int = 3600,
+) -> None:
+    """Refresh storage sensors from Amcrest camera"""
+
+    while True:
+        logger.info("Fetching storage sensors...")
+        try:
+            storage = camera.client.storage_all
+
+            mqtt_client.publish(
+                topic=topics["storage_used_percent"],
+                payload=str(storage["used_percent"]),
+            )
+            mqtt_client.publish(
+                topic=topics["storage_used"], payload=to_gb(float(storage["used"][0]))
+            )
+            mqtt_client.publish(
+                topic=topics["storage_total"], payload=to_gb(float(storage["total"][0]))
+            )
+        except AmcrestError as error:
+            logger.warning(f"Error fetching storage information {error}")
+
+    await asyncio.sleep(polling_interval)
 
 
 if __name__ == "__main__":
