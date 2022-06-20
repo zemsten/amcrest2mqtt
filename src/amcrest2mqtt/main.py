@@ -48,7 +48,10 @@ def main() -> None:
     )
 
     mqtt_client = MqttClient(
-        host=mqtt_host, port=mqtt_port, username=mqtt_username, password=mqtt_password
+        host=mqtt_host,
+        port=int(mqtt_port),
+        username=mqtt_username,
+        password=mqtt_password,
     )
 
     # MQTT topics

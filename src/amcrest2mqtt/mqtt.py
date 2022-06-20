@@ -24,7 +24,7 @@ class MqttClient:
     def __init__(
         self,
         host: str,
-        port: str,
+        port: int,
         username: str = "",
         password: str = "",
         tls_config: MqttClientTLS = None,
