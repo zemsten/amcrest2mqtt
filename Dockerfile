@@ -5,6 +5,7 @@ RUN mkdir /app
 COPY setup.py /app
 COPY VERSION /app
 COPY src /app/src
+COPY bin /app/bin
 WORKDIR /app
 RUN ls /app
 
