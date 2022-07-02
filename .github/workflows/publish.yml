@@ -5,19 +5,11 @@ name: Publish
       - main
 jobs:
   docker-publish:
-    name: Publish to Docker Hub
-    if: '!contains(github.event.head_commit.message, ''[ci skip]'')'
+    name: Publish to GHCR
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Bump version
-        uses: remorses/bump-version@js
-        id: version
-        with:
-          version_file: ./VERSION
-        env:
-          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
       - name: 'Build and publish a Docker image for ${{ github.repository }}'
         uses: macbre/push-to-ghcr@master
         with:
