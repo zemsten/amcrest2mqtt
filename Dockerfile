@@ -7,7 +7,6 @@ COPY VERSION /app
 COPY src /app/src
 COPY bin /app/bin
 WORKDIR /app
-RUN ls /app
 
 RUN python3 setup.py install
 
