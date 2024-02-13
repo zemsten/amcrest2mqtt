@@ -1,29 +1,31 @@
 from slugify import slugify
-from amcrest import AmcrestCamera,AmcrestError
-from datetime import datetime,timezone
+from amcrest import AmcrestCamera, AmcrestError
+from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 import os
 import sys
 import json
 import signal
 
-amcrest_host = os.getenv('AMCREST_HOST')
-amcrest_port = int(os.getenv('AMCREST_PORT') or 80)
-amcrest_username = os.getenv('AMCREST_USERNAME') or "admin"
-amcrest_password = os.getenv('AMCREST_PASSWORD')
+amcrest_host = os.getenv("AMCREST_HOST")
+amcrest_port = int(os.getenv("AMCREST_PORT") or 80)
+amcrest_username = os.getenv("AMCREST_USERNAME") or "admin"
+amcrest_password = os.getenv("AMCREST_PASSWORD")
 
-mqtt_host = os.getenv('MQTT_HOST') or "localhost"
+mqtt_host = os.getenv("MQTT_HOST") or "localhost"
 mqtt_qos = int(os.getenv("MQTT_QOS") or 0)
-mqtt_port = int(os.getenv('MQTT_PORT') or 1883)
-mqtt_username = os.getenv('MQTT_USERNAME')
-mqtt_password = os.getenv('MQTT_PASSWORD') # can be None
+mqtt_port = int(os.getenv("MQTT_PORT") or 1883)
+mqtt_username = os.getenv("MQTT_USERNAME")
+mqtt_password = os.getenv("MQTT_PASSWORD")  # can be None
 
 home_assistant = os.getenv("HOME_ASSISTANT") == "true"
 home_assistant_prefix = os.getenv("HOME_ASSISTANT_PREFIX") or "homeassistant"
 
+
 def log(msg, level="INFO"):
     ts = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S")
     print(f"{ts} [{level}] {msg}")
+
 
 # Exit if any of the required vars are not provided
 if amcrest_host is None:
@@ -39,7 +41,9 @@ if mqtt_username is None:
     sys.exit(1)
 
 # Connect to camera
-camera = AmcrestCamera(amcrest_host, amcrest_port, amcrest_username, amcrest_password).camera
+camera = AmcrestCamera(
+    amcrest_host, amcrest_port, amcrest_username, amcrest_password
+).camera
 
 device_type = camera.device_type.replace("type=", "").strip()
 log(f"Device type: {device_type}")
@@ -65,12 +69,16 @@ motion_home_assistant_topic = f"{home_assistant_prefix}/binary_sensor/amcrest2mq
 
 client_id = f"amcrest2mqtt_{serial_number}"
 
-def on_mqtt_disconnect(client, userdata, rc):
-    if rc != 0:
-        log(f"Unexpected MQTT disconnection", level="ERROR")
-        exit_gracefully(rc, skip_mqtt=True)
 
-mqtt_client = mqtt.Client(client_id=client_id, clean_session=False)
+def on_mqtt_disconnect(client, userdata, flags, reason_code, properties):
+    if reason_code.is_failure:
+        log(f"Unexpected MQTT disconnection: {reason_code}", level="ERROR")
+        exit_gracefully(reason_code, skip_mqtt=True)
+
+
+mqtt_client = mqtt.Client(
+    mqtt.CallbackAPIVersion.VERSION2, client_id=client_id, clean_session=False
+)
 mqtt_client.suppress_exceptions = False
 mqtt_client.on_disconnect = on_mqtt_disconnect
 mqtt_client.username_pw_set(mqtt_username, password=mqtt_password)
@@ -84,6 +92,7 @@ except ConnectionError as error:
 
 mqtt_client.loop_start()
 
+
 def mqtt_publish(topic, payload, exit_on_error=True):
     global mqtt_client
 
@@ -96,9 +105,10 @@ def mqtt_publish(topic, payload, exit_on_error=True):
     log(f"Error publishing MQTT message: {mqtt.error_string(msg.rc)}", level="ERROR")
 
     if exit_on_error:
-        exit_gracefully(msg.rc, skip_mqtt=True)
+        exit_gracefully(msg.reason_code, skip_mqtt=True)
 
-def exit_gracefully(rc, skip_mqtt=False):
+
+def exit_gracefully(reason_code, skip_mqtt=False):
     global status_topic, mqtt_client
 
     if mqtt_client.is_connected() and skip_mqtt == False:
@@ -108,9 +118,11 @@ def exit_gracefully(rc, skip_mqtt=False):
 
     # Use os._exit instead of sys.exit to ensure an MQTT disconnect event causes the program to exit correctly as they
     # occur on a separate thread
-    os._exit(rc)
+    os._exit(1)
+
 
 is_exiting = False
+
 
 def signal_handler(sig, frame):
     # exit immediately upon receiving a second SIGINT
@@ -121,6 +133,7 @@ def signal_handler(sig, frame):
 
     is_exiting = True
     exit_gracefully(0)
+
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -133,32 +146,42 @@ if home_assistant:
         "model": device_type,
         "identifiers": serial_number,
         "sw_version": sw_version,
-        "via_device": "amcrest2mqtt"
+        "via_device": "amcrest2mqtt",
     }
 
     log("Writing Home Assistant discovery config...")
 
     if device_type in ["AD110", "AD410"]:
-        mqtt_publish(doorbell_home_assistant_topic, json.dumps({
-            "availability_topic": status_topic,
-            "state_topic": doorbell_topic,
-            "payload_on": "on",
-            "payload_off": "off",
-            "name": f"{device_name} Doorbell",
-            "unique_id": f"{serial_number}.doorbell",
-            "device": device_obj
-        }))
+        mqtt_publish(
+            doorbell_home_assistant_topic,
+            json.dumps(
+                {
+                    "availability_topic": status_topic,
+                    "state_topic": doorbell_topic,
+                    "payload_on": "on",
+                    "payload_off": "off",
+                    "name": f"{device_name} Doorbell",
+                    "unique_id": f"{serial_number}.doorbell",
+                    "device": device_obj,
+                }
+            ),
+        )
 
-    mqtt_publish(motion_home_assistant_topic, json.dumps({
-        "availability_topic": status_topic,
-        "state_topic": motion_topic,
-        "payload_on": "on",
-        "payload_off": "off",
-        "device_class": "motion",
-        "name": f"{device_name} Motion",
-        "unique_id": f"{serial_number}.motion",
-        "device": device_obj,
-    }))
+    mqtt_publish(
+        motion_home_assistant_topic,
+        json.dumps(
+            {
+                "availability_topic": status_topic,
+                "state_topic": motion_topic,
+                "payload_on": "on",
+                "payload_off": "off",
+                "device_class": "motion",
+                "name": f"{device_name} Motion",
+                "unique_id": f"{serial_number}.motion",
+                "device": device_obj,
+            }
+        ),
+    )
 
 log("Listening for events...")
 
