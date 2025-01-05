@@ -20,6 +20,6 @@ setup(
         "paho-mqtt==1.6.1",
         "python-slugify==7.0.0",
         "urllib3==2.2.2",
-        "requests==2.31.0",
+        "requests==2.32.2",
     ],
 )
