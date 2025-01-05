@@ -1,4 +1,4 @@
-FROM python:3.9-alpine as base
+FROM python:3.13-alpine as base
 
 
 RUN mkdir /app
