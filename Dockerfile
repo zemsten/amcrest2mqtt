@@ -1,15 +1,13 @@
-FROM python:3.13-alpine as base
-FROM base as builder
+FROM python:3.9-alpine as base
 
-RUN mkdir /install
-WORKDIR /install
 
-COPY requirements.txt /
-RUN pip install --prefix=/install -r /requirements.txt
-
-FROM base
-COPY --from=builder /install /usr/local
-COPY src /app
+RUN mkdir /app
+COPY setup.py /app
+COPY VERSION /app
+COPY src /app/src
+COPY bin /app/bin
 WORKDIR /app
 
-CMD [ "python", "-u", "/app/amcrest2mqtt.py" ]
+RUN python3 setup.py install
+
+CMD [ "amcrest2mqtt" ]
