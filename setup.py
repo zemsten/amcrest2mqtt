@@ -17,7 +17,7 @@ setup(
     scripts=["bin/amcrest2mqtt"],
     install_requires=[
         "amcrest==1.9.7",
-        "paho-mqtt==1.6.1",
+        "paho-mqtt==2.1.0",
         "python-slugify==7.0.0",
         "urllib3==2.3.0",
         "requests==2.32.3",
