@@ -1,4 +1,4 @@
-FROM python:3.11-alpine as base
+FROM python:3.13-alpine as base
 
 ARG UID="500"
 ARG GID="500"
